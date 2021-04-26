@@ -1,0 +1,22 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+black = "*"
+isort = "*"
+rope = "*"
+flake8 = "*"
+
+[packages]
+opencv-contrib-python = "*"
+pillow = "*"
+marshmallow = "*"
+click = "*"
+
+[requires]
+python_version = "3.8"
+
+[pipenv]
+allow_prereleases = true
