@@ -139,8 +139,5 @@ cython_debug/
 
 # Custom
 .vscode/
-notes/
-classifiers/
-models/
 input/
 output/
