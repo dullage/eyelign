@@ -23,7 +23,7 @@ class Eyelign:
         self.output_eye_width_pct = output_eye_width_pct
 
         self.load_cache()
-        self.has_missing_eye_positions = False
+        self.missing_eye_positions = 0
         self.images = self.populate_images()
 
     @property
@@ -63,10 +63,10 @@ class Eyelign:
         num_faces = len(facial_landmarks)
 
         if num_faces < 1:
-            logging.error(f"Cannot find face in '{filename}'.")
+            logging.warning(f"Cannot find face in '{filename}'.")
             lx = ly = rx = ry = None
         elif num_faces > 1:
-            logging.error(f"Multiple faces found in '{filename}'.")
+            logging.warning(f"Multiple faces found in '{filename}'.")
             lx = ly = rx = ry = None
         else:
             left_eye = self.centroid(facial_landmarks[0]["left_eye"])
@@ -89,9 +89,6 @@ class Eyelign:
         for filename in self.get_input_filenames():
             try:
                 eye_positions = self.cache[filename]
-                logging.info(
-                    f"Eye positions for '{filename}' loaded from cache."
-                )
             except KeyError:
                 eye_positions = self.find_eyes(filename)
                 self.cache[filename] = eye_positions
@@ -106,10 +103,8 @@ class Eyelign:
             )
 
             if missing_eye_positions > 0:
-                logging.warning(
-                    f"One or more eye positions missing for {filename}."
-                )
-                self.has_missing_eye_positions = True
+                logging.warning(f"Eye positions missing for {filename}.")
+                self.missing_eye_positions += 1
             else:
                 images.append(
                     EyelignImage(
@@ -123,14 +118,14 @@ class Eyelign:
                 )
         return images
 
-    def process_images(self, ignore_missing=False):
+    def process_images(self, ignore_missing=False, debug=False):
         if len(os.listdir(self.output_path)) != 0:
             logging.error("Output directory must be empty!")
             return
 
-        if ignore_missing is False and self.has_missing_eye_positions:
+        if ignore_missing is False and self.missing_eye_positions > 0:
             logging.error(
-                "One or more images have missing eye positions. Please manually edit the cache file."
+                f"{self.missing_eye_positions} images have missing eye positions. Please manually edit the cache file or specify '--ignore-missing'."
             )
             return
 
@@ -139,4 +134,5 @@ class Eyelign:
                 self.output_image_size,
                 self.output_eye_width_pct,
                 self.output_path,
+                debug,
             )
