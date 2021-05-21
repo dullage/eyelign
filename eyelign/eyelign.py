@@ -46,7 +46,7 @@ class Eyelign:
             fn
             for fn in os.listdir(self.input_path)
             if os.path.isfile(os.path.join(self.input_path, fn))
-            and fn.endswith(self.SUPPORTED_INPUT_EXTENSIONS)
+            and fn.lower().endswith(self.SUPPORTED_INPUT_EXTENSIONS)
         ]
 
     def centroid(self, polygon):
