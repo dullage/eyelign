@@ -27,11 +27,11 @@ At the time I couldn't find anything that fit these needs and I wanted a project
 Then, loop through all of the files again and for each one:
 
 1. Rotate the image so that the eyes are level.
-2. Resize the image so that in all images the eyes are the same distance apart.
+2. Resize the image so that in all images, the eyes are the same distance apart.
 3. Crop the image to the required size using the eyes as an anchor point.
 4. Save the image to the `output` folder.
 
-If the automatic eye position detection fails for any reason, the file is still added to the cache with null values for the eye positions. This is for 2 reasons:
+If the automatic eye position detection fails for any reason, the file is still added to the cache but with null values for the eye positions. This is for 2 reasons:
 
 1. It means that eyelign won't try again the next time it is run.
 2. It allows users to manually enter the eye positions. I generally do this by finding the xy values using MS Paint (visible in the bottom left corner of the app).
@@ -77,7 +77,7 @@ Run the Docker image with the 2 folders as volume mounts:
 
 ```bash
 docker run -it --rm \
-  -v "/input/folder/path:/input" \
+  -v "/input/folder/path:/input:ro" \
   -v "/output/folder/path:/output" \
   dullage/eyelign:latest
 ```
@@ -127,7 +127,7 @@ To use an option in a Docker command simply add it to the end:
 
 ```bash
 docker run -it --rm \
-  -v "/input/folder/path:/input" \
+  -v "/input/folder/path:/input:ro" \
   -v "/output/folder/path:/output" \
   dullage/eyelign:latest \
   --debug True
