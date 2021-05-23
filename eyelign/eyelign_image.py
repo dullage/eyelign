@@ -40,6 +40,14 @@ class EyelignImage:
             - 90
         )
 
+    def _add_safety_border(self, image):
+        """Add a border around the image that will prevent loss for any rotation."""
+        max_dist = int(math.hypot(image.width, image.height))
+        image = ImageOps.expand(image, max_dist)
+        for position in ["lx", "ly", "rx", "ry"]:
+            setattr(self, position, getattr(self, position) + max_dist)
+        return image
+
     @classmethod
     def calc_r_after_rotation(self, lx, ly, rx, ry, rotation_deg):
         """Return the position of 'r' as a tuple after rotating the image by 'rotation_deg' around 'l'."""
@@ -76,10 +84,11 @@ class EyelignImage:
 
         else:
             # Straighten Eyes
+            image = self._add_safety_border(image)  # Add a border to ensure no image data is lost in the rotation.
             rotation_deg = self._rotation_required()
             image = image.rotate(
                 rotation_deg, center=(self.lx, self.ly), resample=Image.BICUBIC
-            )  # TODO: Add border to ensure no image data is lost in the rotation.
+            ) 
             self.rx, self.ry = self.calc_r_after_rotation(
                 self.lx, self.ly, self.rx, self.ry, rotation_deg
             )
@@ -94,10 +103,10 @@ class EyelignImage:
                     int(image.height * resize_factor),
                 )
             )
-            self.lx = int(self.lx * resize_factor)
-            self.ly = int(self.ly * resize_factor)
-            self.rx = int(self.rx * resize_factor)
-            self.ry = int(self.ry * resize_factor)
+            for position in ["lx", "ly", "rx", "ry"]:
+                setattr(
+                    self, position, getattr(self, position) * resize_factor
+                )
 
             # Final Crop
             x_to_edge = int(output_image_size[0] / 2)
