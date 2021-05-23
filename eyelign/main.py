@@ -12,6 +12,16 @@ logging.basicConfig(
 
 
 @click.command()
+@click.argument(
+    "input_dir",
+    type=click.Path(exists=True, readable=True),
+    envvar="EYELIGN_INPUT_DIR",
+)
+@click.argument(
+    "output_dir",
+    type=click.Path(exists=True, writable=True),
+    envvar="EYELIGN_OUTPUT_DIR",
+)
 @click.option(
     "--output-width", prompt="Output Image Width", type=click.INT, help=""
 )
@@ -42,6 +52,8 @@ logging.basicConfig(
     help="Skips all image transformation and simply outputs copies of the source images with eye positions highlighted. Useful to check eye positions are correct.",
 )
 def cli(
+    input_dir,
+    output_dir,
     output_width,
     output_height,
     eye_width_pct,
@@ -50,7 +62,7 @@ def cli(
     debug,
 ):
     eyelign = Eyelign(
-        "/input", "/output", (output_width, output_height), eye_width_pct
+        input_dir, output_dir, (output_width, output_height), eye_width_pct
     )
     if not input_only:
         eyelign.process_images(ignore_missing=ignore_missing, debug=debug)

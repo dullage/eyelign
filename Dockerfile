@@ -37,4 +37,7 @@ RUN pip install pipenv && pipenv install --system --deploy --ignore-pipfile
 
 COPY ./eyelign ./
 
+ENV EYELIGN_INPUT_DIR=/input
+ENV EYELIGN_OUTPUT_DIR=/output
+
 ENTRYPOINT [ "python3", "main.py" ]
