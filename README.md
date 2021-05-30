@@ -77,7 +77,7 @@ Run the Docker image with the 2 folders as volume mounts:
 
 ```bash
 docker run -it --rm \
-  -v "/input/folder/path:/input:ro" \
+  -v "/input/folder/path:/input" \
   -v "/output/folder/path:/output" \
   dullage/eyelign:latest
 ```
@@ -127,7 +127,7 @@ To use an option in a Docker command simply add it to the end:
 
 ```bash
 docker run -it --rm \
-  -v "/input/folder/path:/input:ro" \
+  -v "/input/folder/path:/input" \
   -v "/output/folder/path:/output" \
   dullage/eyelign:latest \
   --debug True
