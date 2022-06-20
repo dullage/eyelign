@@ -23,6 +23,20 @@ logging.basicConfig(
     envvar="EYELIGN_OUTPUT_DIR",
 )
 @click.option(
+    "--find-eyes",
+    default=True,
+    type=click.BOOL,
+    show_default=True,
+    help="Find eyes in new images.",
+)
+@click.option(
+    "--transform-images",
+    default=True,
+    type=click.BOOL,
+    show_default=True,
+    help="Transform images and save output in OUTPUT_DIR.",
+)
+@click.option(
     "--output-width", prompt="Output Image Width", type=click.INT, help=""
 )
 @click.option("--output-height", prompt="Output Image Height", type=click.INT)
@@ -31,41 +45,42 @@ logging.basicConfig(
     default=20,
     type=click.INT,
     show_default=True,
-    help="Determines the width of the eyes as a percentage of the output width.",
+    help="Determines the width of the eyes as a percentage of the output "
+    "width.",
 )
 @click.option(
     "--ignore-missing",
     default=False,
     type=click.BOOL,
-    help="Output will normally fail if any images are missing eye positions. Set this to true to override normal behaviour.",
-)
-@click.option(
-    "--input-only",
-    default=False,
-    type=click.BOOL,
-    help="Only add eye positions to the .eyelign cache file. Output disabled.",
+    help="Output will normally fail if any images are missing eye positions. "
+    "Set this to true to override normal behaviour.",
 )
 @click.option(
     "--debug",
     default=False,
     type=click.BOOL,
-    help="Skips all image transformation and simply outputs copies of the source images with eye positions highlighted. Useful to check eye positions are correct.",
+    help="Skips all image transformation and simply outputs copies of the "
+    "source images with eye positions highlighted. Useful to check eye "
+    "positions are correct.",
 )
 def cli(
     input_dir,
     output_dir,
+    find_eyes,
+    transform_images,
+    ignore_missing,
     output_width,
     output_height,
     eye_width_pct,
-    ignore_missing,
-    input_only,
     debug,
 ):
     eyelign = Eyelign(
         input_dir, output_dir, (output_width, output_height), eye_width_pct
     )
-    if not input_only:
-        eyelign.process_images(ignore_missing=ignore_missing, debug=debug)
+    if find_eyes:
+        eyelign.find_eyes()
+    if transform_images:
+        eyelign.transform_images(ignore_missing=ignore_missing, debug=debug)
 
 
 if __name__ == "__main__":

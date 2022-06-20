@@ -4,23 +4,23 @@ A tool to align multiple portrait photos by eye position.
 
 ## Introduction
 
-When my daughter was born I decided to take a portrait photo of her every week with the idea of creating a timelapse when she is older. 
+When my daughter was born I decided to take a portrait photo of her every week with the idea of creating a timelapse when she is older.
 
 I started out using an iOS app tailored for this purpose but I didn't like being locked into the app and the backup options were limited.
 
-I then switched to simply using *any* app or camera to take the photos and set out to find something that could create the timelapse. There were a few considerations:
+I then switched to simply using _any_ app or camera to take the photos and set out to find something that could create the timelapse. There were a few considerations:
 
-* **I was looking for an open-source solution.** This is to avoid another app lock-in.
-* **The source images would be varied in size and aspect ratio.**
-* **I wanted the eyes to be aligned in each frame.** This type of timelapse is much more pleasant to watch when the eyes are aligned.
-* **The position of my daughter's eyes would vary between photos.** As I write this she's 3 and it's hard enough to keep her still for 5 seconds let alone get the photo perfectly aligned!
-* **The rotation of my daughter's face would vary between photos.**
+- **I was looking for an open-source solution.** This is to avoid another app lock-in.
+- **The source images would be varied in size and aspect ratio.**
+- **I wanted the eyes to be aligned in each frame.** This type of timelapse is much more pleasant to watch when the eyes are aligned.
+- **The position of my daughter's eyes would vary between photos.** As I write this she's 3 and it's hard enough to keep her still for 5 seconds let alone get the photo perfectly aligned!
+- **The rotation of my daughter's face would vary between photos.**
 
 At the time I couldn't find anything that fit these needs and I wanted a project so I started to piece eyelign together.
 
 ## Top-level Workflow
 
-1. Find all jpg/jpeg files in the `input` directory.
+1. Find all jpg/jpeg files in the `INPUT_DIR`.
 2. Look for a `.eyelign` file. This is used to cache eye positions so that they don't need to be found each run.
 3. Loop through all of the files. For any file not in the cache, use the python package '[face_recognition](https://github.com/ageitgey/face_recognition)' to attempt to automatically find the eye positions.
 
@@ -29,7 +29,7 @@ Then, loop through all of the files again and for each one:
 1. Rotate the image so that the eyes are level.
 2. Resize the image so that in all images, the eyes are the same distance apart.
 3. Crop the image to the required size using the eyes as an anchor point.
-4. Save the image to the `output` folder.
+4. Save the image to the `OUTPUT_DIR`.
 
 If the automatic eye position detection fails for any reason, the file is still added to the cache but with null values for the eye positions. This is for 2 reasons:
 
@@ -41,12 +41,14 @@ This example .eyelign file has 2 images saved, one with eye positions and one wi
 ```json
 {
   "2020-01-01.jpg": {
+    "find_eyes_attempted": true,
     "lx": 1194,
     "ly": 1817,
     "rx": 1651,
     "ry": 1820
   },
   "2020-01-08.jpg": {
+    "find_eyes_attempted": true,
     "lx": null,
     "ly": null,
     "rx": null,
@@ -69,9 +71,9 @@ Next, build the Docker image:
 docker build -t dullage/eyelign:latest /path/to/cloned/repo
 ```
 
-Ensure all of your images are a single flat directory. This will be the `input` folder. *Note: The images in the `input` folder are not modified.*
+Ensure all of your images are a single flat directory. This will be the `INPUT_DIR`. _Note: The images in the `INPUT_DIR` are not modified._
 
-Create an empty folder for the aligned images. This will be the `output` folder.
+Create an empty folder for the aligned images. This will be the `OUTPUT_DIR`.
 
 Run the Docker image with the 2 folders as volume mounts:
 
@@ -82,7 +84,7 @@ docker run -it --rm \
   dullage/eyelign:latest
 ```
 
-That's it! After following the prompts you should have an `output` folder full of aligned images. As described above, if the automatic eye position detection failed on any images you can manually edit the `.eyelign` cache file and try again.
+That's it! After following the prompts you should have an `OUTPUT_DIR` full of aligned images. As described above, if the automatic eye position detection failed on any images you can manually edit the `.eyelign` cache file and try again.
 
 I then use `ffpmeg` to create the timelapse from the images. I may build this into the tool some day but for now, here's an example command:
 
@@ -101,26 +103,28 @@ ffmpeg \
 ## Options
 
 ```
-  --output-width    INTEGER
+  --find-eyes         BOOLEAN   Find eyes in new images.  [default: True]
 
-  --output-height   INTEGER
+  --transform-images  BOOLEAN   Transform images and save output in OUTPUT_DIR.
+                                [default: True]
 
-  --eye-width-pct   INTEGER   Determines the width of the eyes as a percentage
-                              of the output width.  [default: 20]
+  --output-width      INTEGER
 
-  --ignore-missing  BOOLEAN   Output will normally fail if any images are
-                              missing eye positions. Set this to true to
-                              override normal behaviour.
+  --output-height     INTEGER
 
-  --input-only      BOOLEAN   Only add eye positions to the .eyelign cache file.
-                              Output disabled.
+  --eye-width-pct     INTEGER   Determines the width of the eyes as a percentage
+                                of the output width.  [default: 20]
 
-  --debug           BOOLEAN   Skips all image transformation and simply outputs
-                              copies of the source images with eye positions
-                              highlighted. Useful to check eye positions are
-                              correct.
+  --ignore-missing    BOOLEAN   Output will normally fail if any images are
+                                missing eye positions. Set this to true to
+                                override normal behaviour.
 
-  --help                      Show this message and exit.
+  --debug             BOOLEAN   Skips all image transformation and simply
+                                outputs copies of the source images with eye
+                                positions highlighted. Useful to check eye
+                                positions are correct.
+
+  --help                        Show this message and exit.
 ```
 
 To use an option in a Docker command simply add it to the end:
