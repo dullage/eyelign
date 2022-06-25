@@ -119,6 +119,9 @@ ffmpeg \
                                 missing eye positions. Set this to true to
                                 override normal behaviour.
 
+  --workers           INTEGER   The number of CPU workers to use.  [default:
+                                number of physical cores available]
+
   --debug             BOOLEAN   Skips all image transformation and simply
                                 outputs copies of the source images with eye
                                 positions highlighted. Useful to check eye
@@ -136,3 +139,5 @@ docker run -it --rm \
   dullage/eyelign:latest \
   --debug True
 ```
+
+# TO UPDATE

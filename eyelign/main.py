@@ -56,6 +56,13 @@ logging.basicConfig(
     "Set this to true to override normal behaviour.",
 )
 @click.option(
+    "--workers",
+    default=None,
+    type=click.INT,
+    help="The number of CPU workers to use.  [default: number of "
+    "physical cores available]",
+)
+@click.option(
     "--debug",
     default=False,
     type=click.BOOL,
@@ -72,10 +79,15 @@ def cli(
     output_width,
     output_height,
     eye_width_pct,
+    workers,
     debug,
 ):
     eyelign = Eyelign(
-        input_dir, output_dir, (output_width, output_height), eye_width_pct
+        input_dir,
+        output_dir,
+        (output_width, output_height),
+        eye_width_pct,
+        workers,
     )
     if find_eyes:
         eyelign.find_eyes()

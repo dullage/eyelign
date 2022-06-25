@@ -1,6 +1,9 @@
 import json
 import logging
 import os
+from multiprocessing import get_context
+
+import psutil
 
 from eyelign_image import EyelignImage
 
@@ -15,27 +18,33 @@ class Eyelign:
         output_path,
         output_image_size,
         output_eye_width_pct,
+        num_workers=None,
     ):
         self.input_path = input_path
         self.output_path = output_path
         self.output_image_size = output_image_size
         self.output_eye_width_pct = output_eye_width_pct
 
+        self.num_workers = (
+            num_workers
+            if num_workers is not None
+            else psutil.cpu_count(logical=False)
+        )
+
         self.images = self._get_images()
         self._load_cache()
         self._save_cache()
 
     def find_eyes(self) -> None:
-        for image in [
-            image for image in self.images if image.eyes_found is False
-        ]:
-            if image.find_eyes_attempted is False:
-                image.find_eyes()
-                self._save_cache()
-            else:
-                logging.info(
-                    f"Skipping '{image.filename}' as previously attempted."
-                )
+        with get_context("spawn").Pool(self.num_workers) as pool:
+            result = pool.map(
+                EyelignImage.find_eyes,
+                [image for image in self.images if image.eyes_found is False],
+            )
+        self.images = [
+            image for image in self.images if image.eyes_found is True
+        ] + [image for image in result]
+        self._save_cache()
 
     def transform_images(
         self, ignore_missing: bool = False, debug: bool = False
@@ -52,12 +61,20 @@ class Eyelign:
             )
             return
 
-        for image in self.images:
-            image.transform(
-                self.output_image_size,
-                self.output_eye_width_pct,
-                self.output_path,
-                debug,
+        with get_context("spawn").Pool(self.num_workers) as pool:
+            pool.starmap(
+                EyelignImage.transform,
+                [
+                    (
+                        image,
+                        self.output_image_size,
+                        self.output_eye_width_pct,
+                        self.output_path,
+                        debug,
+                    )
+                    for image in self.images
+                    if image.eyes_found is True
+                ],
             )
 
     @property
@@ -99,6 +116,7 @@ class Eyelign:
                 pass
 
     def _save_cache(self):
+        self.images.sort(key=lambda image: image.filename)
         with open(self._cache_path, "w") as f:
             json.dump(
                 {

@@ -55,6 +55,7 @@ class EyelignImage:
             self.ry = right_eye[1]
             logging.info(f"Successfully located eyes in '{self.filename}'.")
         self.find_eyes_attempted = True
+        return self
 
     def transform(
         self,
@@ -130,7 +131,8 @@ class EyelignImage:
         image.close()
         logging.info(f"Transformed image '{self.filename}'.")
 
-    def _centroid(self, polygon):
+    @classmethod
+    def _centroid(cls, polygon):
         """Find the center point of a given polygon."""
         num_points = len(polygon)
         x = [point[0] for point in polygon]
