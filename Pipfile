@@ -7,9 +7,16 @@ verify_ssl = true
 pillow = "*"
 click = "*"
 face-recognition = "*"
+psutil = "*"
 
 [requires]
-python_version = "3.6"
+python_version = "3.10"
 
 [pipenv]
 allow_prereleases = true
+
+[dev-packages]
+black = "*"
+flake8 = "*"
+rope = "*"
+isort = "*"

@@ -1,8 +1,10 @@
 import json
 import logging
 import os
+from multiprocessing import get_context
 
-import face_recognition
+import psutil
+
 from eyelign_image import EyelignImage
 
 
@@ -16,123 +18,156 @@ class Eyelign:
         output_path,
         output_image_size,
         output_eye_width_pct,
+        num_workers=None,
     ):
         self.input_path = input_path
         self.output_path = output_path
         self.output_image_size = output_image_size
         self.output_eye_width_pct = output_eye_width_pct
 
-        self.load_cache()
-        self.missing_eye_positions = 0
-        self.images = self.populate_images()
-
-    @property
-    def cache_path(self):
-        return os.path.join(self.input_path, self.CACHE_FILENAME)
-
-    def load_cache(self):
-        try:
-            with open(self.cache_path, "r") as f:
-                self.cache = json.load(f)
-        except FileNotFoundError:
-            self.cache = {}
-
-    def save_cache(self):
-        with open(self.cache_path, "w") as f:
-            json.dump(self.cache, f, indent=2)
-
-    def get_input_filenames(self):
-        return [
-            fn
-            for fn in os.listdir(self.input_path)
-            if os.path.isfile(os.path.join(self.input_path, fn))
-            and fn.lower().endswith(self.SUPPORTED_INPUT_EXTENSIONS)
-        ]
-
-    def centroid(self, polygon):
-        num_points = len(polygon)
-        x = [point[0] for point in polygon]
-        y = [point[1] for point in polygon]
-        return (int(sum(x) / num_points), int(sum(y) / num_points))
-
-    def find_eyes(self, filename):
-        image = face_recognition.load_image_file(
-            os.path.join(self.input_path, filename)
+        self.num_workers = (
+            num_workers
+            if num_workers is not None
+            else psutil.cpu_count(logical=False)
         )
-        facial_landmarks = face_recognition.face_landmarks(image)
-        num_faces = len(facial_landmarks)
 
-        if num_faces < 1:
-            logging.warning(f"Cannot find face in '{filename}'.")
-            lx = ly = rx = ry = None
-        elif num_faces > 1:
-            logging.warning(f"Multiple faces found in '{filename}'.")
-            lx = ly = rx = ry = None
-        else:
-            left_eye = self.centroid(facial_landmarks[0]["left_eye"])
-            lx = left_eye[0]
-            ly = left_eye[1]
-            right_eye = self.centroid(facial_landmarks[0]["right_eye"])
-            rx = right_eye[0]
-            ry = right_eye[1]
-            logging.info(f"Successfully located eyes in '{filename}'.")
+        self.images = self._get_images()
+        self._load_cache()
+        self._save_cache()
+        self.log_stats()
 
-        return {
-            "lx": lx,
-            "ly": ly,
-            "rx": rx,
-            "ry": ry,
-        }
+    def log_stats(self):
+        logging.info(
+            f"{self._num_images} images, "
+            f"{self._num_images_no_eyes} missing eye positions "
+            f"({self._num_images_no_eyes_attempted} already attempted)."
+        )
 
-    def populate_images(self):
-        images = []
-        for filename in self.get_input_filenames():
-            try:
-                eye_positions = self.cache[filename]
-            except KeyError:
-                eye_positions = self.find_eyes(filename)
-                self.cache[filename] = eye_positions
-                self.save_cache()
+    def find_eyes(self) -> None:
+        workload = [
+            image
+            for image in self.images
+            if image.eyes_found is False and image.find_eyes_attempted is False
+        ]
+        if len(workload) == 0:
+            logging.info("No eyes to find (exluding those already attempted).")
+            return
 
-            missing_eye_positions = len(
-                [
-                    position
-                    for position in eye_positions.values()
-                    if position is None
-                ]
+        logging.info(f"Finding eyes with {self.num_workers} workers.")
+        with get_context("spawn").Pool(self.num_workers) as pool:
+            result = pool.map(
+                EyelignImage.find_eyes,
+                workload,
             )
 
-            if missing_eye_positions > 0:
-                logging.warning(f"Eye positions missing for {filename}.")
-                self.missing_eye_positions += 1
-            else:
-                images.append(
-                    EyelignImage(
-                        self.input_path,
-                        filename,
-                        eye_positions["lx"],
-                        eye_positions["ly"],
-                        eye_positions["rx"],
-                        eye_positions["ry"],
-                    )
-                )
-        return images
+        self.images = [
+            image
+            for image in self.images
+            if image.eyes_found is True or image.find_eyes_attempted is True
+        ] + [image for image in result]
 
-    def process_images(self, ignore_missing=False, debug=False):
+        self.log_stats()
+        self._save_cache()
+
+    def transform_images(
+        self, ignore_missing: bool = False, debug: bool = False
+    ) -> None:
         if len(os.listdir(self.output_path)) != 0:
             logging.error("Output directory must be empty!")
             return
 
-        if ignore_missing is False and self.missing_eye_positions > 0:
+        if ignore_missing is False and self._num_images_no_eyes > 0:
             logging.error(
-                f"{self.missing_eye_positions} images have missing eye positions. Please manually edit the cache file or specify '--ignore-missing'."
+                f"{self._num_images_no_eyes} images have missing eye"
+                "positions. Please manually edit the cache file or "
+                "specify '--ignore-missing'."
             )
             return
 
+        logging.info(f"Transforming images with {self.num_workers} workers.")
+        with get_context("spawn").Pool(self.num_workers) as pool:
+            pool.starmap(
+                EyelignImage.transform,
+                [
+                    (
+                        image,
+                        self.output_image_size,
+                        self.output_eye_width_pct,
+                        self.output_path,
+                        debug,
+                    )
+                    for image in self.images
+                    if image.eyes_found is True
+                ],
+            )
+
+    @property
+    def _cache_path(self):
+        return os.path.join(self.input_path, self.CACHE_FILENAME)
+
+    @property
+    def _num_images(self):
+        return len(self.images)
+
+    @property
+    def _num_images_no_eyes(self):
+        return len(
+            [image for image in self.images if image.eyes_found is False]
+        )
+
+    @property
+    def _num_images_no_eyes_attempted(self):
+        return len(
+            [
+                image
+                for image in self.images
+                if image.eyes_found is False
+                and image.find_eyes_attempted is True
+            ]
+        )
+
+    def _get_images(self):
+        return [
+            EyelignImage(self.input_path, filename)
+            for filename in os.listdir(self.input_path)
+            if os.path.isfile(os.path.join(self.input_path, filename))
+            and filename.lower().endswith(self.SUPPORTED_INPUT_EXTENSIONS)
+        ]
+
+    def _load_cache(self):
+        try:
+            with open(self._cache_path, "r") as f:
+                cache = json.load(f)
+                logging.info("Cache loaded.")
+        except FileNotFoundError:
+            return
+
         for image in self.images:
-            image.process(
-                self.output_image_size,
-                self.output_eye_width_pct,
-                self.output_path,
-                debug,
+            try:
+                image.lx = cache[image.filename]["lx"]
+                image.ly = cache[image.filename]["ly"]
+                image.rx = cache[image.filename]["rx"]
+                image.ry = cache[image.filename]["ry"]
+                image.find_eyes_attempted = cache[image.filename][
+                    "find_eyes_attempted"
+                ]
+            except KeyError:
+                pass
+
+    def _save_cache(self):
+        self.images.sort(key=lambda image: image.filename)
+        with open(self._cache_path, "w") as f:
+            json.dump(
+                {
+                    image.filename: {
+                        "find_eyes_attempted": image.find_eyes_attempted,
+                        "lx": image.lx,
+                        "ly": image.ly,
+                        "rx": image.rx,
+                        "ry": image.ry,
+                    }
+                    for image in self.images
+                },
+                f,
+                indent=2,
             )
