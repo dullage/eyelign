@@ -139,5 +139,3 @@ docker run -it --rm \
   dullage/eyelign:latest \
   --debug True
 ```
-
-# TO UPDATE
