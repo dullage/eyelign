@@ -43,7 +43,7 @@ class EyelignImage:
         facial_landmarks = face_recognition.face_landmarks(image)
         num_faces = len(facial_landmarks)
         if num_faces < 1:
-            logging.warning(f"Cannot find face in '{self.filename}'.")
+            logging.warning(f"Cannot find a face in '{self.filename}'.")
         elif num_faces > 1:
             logging.warning(f"Multiple faces found in '{self.filename}'.")
         else:
