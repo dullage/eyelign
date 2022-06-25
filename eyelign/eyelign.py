@@ -34,16 +34,39 @@ class Eyelign:
         self.images = self._get_images()
         self._load_cache()
         self._save_cache()
+        self.log_stats()
+
+    def log_stats(self):
+        logging.info(
+            f"{self._num_images} images, "
+            f"{self._num_images_no_eyes} missing eye positions "
+            f"({self._num_images_no_eyes_attempted} already attempted)."
+        )
 
     def find_eyes(self) -> None:
+        workload = [
+            image
+            for image in self.images
+            if image.eyes_found is False and image.find_eyes_attempted is False
+        ]
+        if len(workload) == 0:
+            logging.info("No eyes to find (exluding those already attempted).")
+            return
+
+        logging.info(f"Finding eyes with {self.num_workers} workers.")
         with get_context("spawn").Pool(self.num_workers) as pool:
             result = pool.map(
                 EyelignImage.find_eyes,
-                [image for image in self.images if image.eyes_found is False],
+                workload,
             )
+
         self.images = [
-            image for image in self.images if image.eyes_found is True
+            image
+            for image in self.images
+            if image.eyes_found is True or image.find_eyes_attempted is True
         ] + [image for image in result]
+
+        self.log_stats()
         self._save_cache()
 
     def transform_images(
@@ -53,14 +76,15 @@ class Eyelign:
             logging.error("Output directory must be empty!")
             return
 
-        if ignore_missing is False and self._num_eyes_not_found > 0:
+        if ignore_missing is False and self._num_images_no_eyes > 0:
             logging.error(
-                f"{self._num_eyes_not_found} images have missing eye"
+                f"{self._num_images_no_eyes} images have missing eye"
                 "positions. Please manually edit the cache file or "
                 "specify '--ignore-missing'."
             )
             return
 
+        logging.info(f"Transforming images with {self.num_workers} workers.")
         with get_context("spawn").Pool(self.num_workers) as pool:
             pool.starmap(
                 EyelignImage.transform,
@@ -82,9 +106,24 @@ class Eyelign:
         return os.path.join(self.input_path, self.CACHE_FILENAME)
 
     @property
-    def _num_eyes_not_found(self):
+    def _num_images(self):
+        return len(self.images)
+
+    @property
+    def _num_images_no_eyes(self):
         return len(
             [image for image in self.images if image.eyes_found is False]
+        )
+
+    @property
+    def _num_images_no_eyes_attempted(self):
+        return len(
+            [
+                image
+                for image in self.images
+                if image.eyes_found is False
+                and image.find_eyes_attempted is True
+            ]
         )
 
     def _get_images(self):
@@ -99,6 +138,7 @@ class Eyelign:
         try:
             with open(self._cache_path, "r") as f:
                 cache = json.load(f)
+                logging.info("Cache loaded.")
         except FileNotFoundError:
             return
 
@@ -111,7 +151,6 @@ class Eyelign:
                 image.find_eyes_attempted = cache[image.filename][
                     "find_eyes_attempted"
                 ]
-                logging.info(f"'{image.filename}' loaded from cache.")
             except KeyError:
                 pass
 
