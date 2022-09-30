@@ -142,3 +142,4 @@ cython_debug/
 .devcontainer/
 input/
 output/
+notes.md

@@ -59,19 +59,13 @@ This example .eyelign file has 2 images saved, one with eye positions and one wi
 
 ## Usage
 
-First clone this repo:
+The easiest way to use eyelign is to use the docker image available on Docker Hub.
 
 ```bash
-git clone https://github.com/Dullage/eyelign.git
+docker pull dullage/eyelign:latest
 ```
 
-Next, build the Docker image:
-
-```bash
-docker build -t dullage/eyelign:latest /path/to/cloned/repo
-```
-
-Ensure all of your images are a single flat directory. This will be the `INPUT_DIR`. _Note: The images in the `INPUT_DIR` are not modified._
+Next, ensure all of your images are a single flat directory. This will be the `INPUT_DIR`. _Note: The images in the `INPUT_DIR` are not modified._
 
 Create an empty folder for the aligned images. This will be the `OUTPUT_DIR`.
 
