@@ -22,7 +22,7 @@ def cli(
     input_dir
 ):
     logging.info('Click left eye and right eye in order\n \
-                If click wrong, press ESC to exit and align agin \
+                If click wrong, press ESC to exit and align agin\n \
                     Aligned image info would not lost')
     read_json_path=os.path.join(input_dir,'.eyelign')
     align_file=json.load(open(read_json_path,'r'))
@@ -32,7 +32,6 @@ def cli(
     FEATURE_NUM = 2
     def draw_circle(event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
-            logging.info('Left eye aligned, now click right eye')
             cv2.circle(img,(x,y),10,(0,0,255),-1)
             feature_points_2d.append([x, y])
     
